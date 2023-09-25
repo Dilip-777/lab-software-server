@@ -1,0 +1,249 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int    @id @default(autoincrement())
+  username    String @unique
+  phonenumber String
+  password    String
+  rolename    String
+  roleId      Int
+  role        Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+}
+
+model Role {
+  id         Int         @id @default(autoincrement())
+  name       String
+  previliges Privilege[]
+  users      User[]
+}
+
+model Department {
+  id              Int    @id @default(autoincrement())
+  name            String
+  doctor          String
+  doctorSignature String
+  tests           Test[]
+}
+
+model Test {
+  id               Int         @id @default(autoincrement())
+  name             String
+  testcode         String?
+  departmentId     Int?
+  departmentName   String?
+  sampletype       String?
+  container        String?
+  samplesize       String?
+  sampleunit       String?
+  reportwithin     String?
+  reportwithinType String?
+  testmethodtype   String?
+  regularprice     Int         @default(0)
+  note             String?     @db.VarChar(500)
+  profile          Profile[]
+  package          Package[]
+  referencesValues Reference[]
+  pricelist        PriceList[]
+  orderTest        OrderTest[]
+  department       Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+}
+
+model Profile {
+  id               Int         @id @default(autoincrement())
+  name             String
+  testcode         String?
+  testnames        String?
+  sampletype       String?
+  sampleunit       String?
+  container        String?
+  samplesize       String?
+  reportwithin     String?
+  reportwithinType String?
+  regularprice     Int         @default(0)
+  note             String?
+  test             Test[]
+  package          Package[]
+  pricelist        PriceList[]
+}
+
+model Package {
+  id               Int         @id @default(autoincrement())
+  name             String
+  sampletype       String?
+  container        String?
+  samplesize       String?
+  sampleunit       String?
+  reportwithin     String?
+  reportwithinType String?
+  regularprice     Int         @default(0)
+  note             String?
+  test             Test[]
+  profile          Profile[]
+  pricelist        PriceList[]
+}
+
+model PriceList {
+  id           Int      @id @default(autoincrement())
+  label        String
+  price        Int      @default(0)
+  profileprice Int      @default(0)
+  packageprice Int      @default(0)
+  testId       Int?
+  test         Test?    @relation(fields: [testId], references: [id], onDelete: Cascade)
+  profileId    Int?
+  profile      Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  packageId    Int?
+  package      Package? @relation(fields: [packageId], references: [id], onDelete: Cascade)
+}
+
+model Reference {
+  id         Int    @id @default(autoincrement())
+  gender     String
+  minAge     Int
+  maxAge     Int
+  lowerValue Int
+  upperValue Int
+  unit       String
+  testId     Int
+  test       Test   @relation(fields: [testId], references: [id], onDelete: Cascade)
+}
+
+model RefLab {
+  id                   Int     @id @default(autoincrement())
+  diagonsticname       String
+  phonenumber          String
+  emailId              String
+  address              String?
+  autoselectpricelist  String
+  autoreportsendmode   String
+  autoreporttype       Boolean
+  reporttype           String?
+  customisedletterhead Boolean
+  letterhead           String?
+  orders               Order[]
+}
+
+model RefDoctor {
+  id                   Int     @id @default(autoincrement())
+  doctorname           String
+  specialisation       String?
+  phonenumber          String
+  emailId              String
+  percentage           Int
+  autoselectpricelist  String
+  autoreportsendmode   String
+  autoreporttype       Boolean
+  reporttype           String?
+  customisedletterhead Boolean
+  letterhead           String?
+  orders               Order[]
+}
+
+model Order {
+  id            Int            @id @default(autoincrement())
+  orderDate     DateTime       @default(now())
+  patientId     Int
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId      Int?
+  doctor        RefDoctor?     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  labId         Int?
+  lab           RefLab?        @relation(fields: [labId], references: [id], onDelete: Cascade)
+  tests         OrderTest[]
+  profiles      OrderProfile[]
+  packages      OrderPackage[]
+  totalamount   Int
+  discount      Int
+  discountType  String?
+  netamount     Int
+  paymentmethod String
+  paidamount    Int
+  balanceamount Int
+  remarks       String?
+  bill          String?
+  orderstatus   String         @default("Registered")
+}
+
+model OrderProfile {
+  id           Int           @id @default(autoincrement())
+  orderId      Int?
+  packageId    Int?
+  name         String
+  sampletype   String?
+  samplesize   String?
+  sampleunit   String?
+  reportwithin String?
+  price        Int?
+  note         String?
+  package      OrderPackage? @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  tests        OrderTest[]
+  order        Order?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OrderPackage {
+  id           Int            @id @default(autoincrement())
+  orderId      Int?
+  name         String
+  sampletype   String?
+  samplesize   String?
+  sampleunit   String?
+  reportwithin String?
+  price        Int?
+  note         String?
+  profiles     OrderProfile[]
+  tests        OrderTest[]
+  order        Order?         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OrderTest {
+  id             Int     @id @default(autoincrement())
+  orderId        Int?
+  name           String
+  sampletype     String?
+  samplesize     String?
+  sampleunit     String?
+  reportwithin   String?
+  testmethodtype String?
+  price          Int
+  note           String?
+  highlight      String?
+  heading        String?
+  referenceValue Int?
+  observedValue  Int?
+  testId         Int
+  test           Test    @relation(fields: [testId], references: [id], onDelete: Cascade)
+  profileId      Int?
+
+  profile   OrderProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  packageId Int?
+  package   OrderPackage? @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  order     Order?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Patient {
+  id             Int     @id @default(autoincrement())
+  name           String
+  nameprefix     String?
+  identityNumber String?
+  identityType   String?
+  gender         String
+  phonenumber    String
+  emailId        String
+  age            Int
+  agesuffix      String?
+  address        String?
+  orders         Order[]
+}
+
+model Privilege {
+  id     Int    @id @default(autoincrement())
+  name   String
+  roleId Int
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+}
