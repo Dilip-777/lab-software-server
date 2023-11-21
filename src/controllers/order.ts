@@ -1,24 +1,33 @@
-import { Request, Response } from "express";
-import prisma from "../util/prisma";
+import { Request, Response } from 'express';
+import prisma from '../util/prisma';
+
+export const getOrder = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const order = await prisma.order.findUnique({
+    where: {
+      id: parseInt(id) || 0,
+    },
+    include: {
+      patient: true,
+      lab: true,
+      doctor: true,
+      tests: true,
+      profiles: true,
+      packages: true,
+    },
+  });
+
+  res.status(200).json({ message: 'success', data: order });
+};
 
 export const getOrders = async (req: Request, res: Response) => {
   try {
-    const {
-      fromDate,
-      toDate,
-      patientname,
-      testcode,
-      testname,
-      mobilenumber,
-      refdoctor,
-      reflab,
-      status,
-    } = req.query;
+    const { fromDate, toDate, patientname, testcode, testname, mobilenumber, refdoctor, reflab, status } = req.query;
 
     let where: any = {};
 
     if (fromDate && toDate) {
-      const nextDate = new Date(toDate as string); 
+      const nextDate = new Date(toDate as string);
 
       nextDate.setDate(nextDate.getDate() + 1);
       where.orderDate = {
@@ -91,15 +100,21 @@ export const getOrders = async (req: Request, res: Response) => {
     const orders = await prisma.order.findMany({
       where,
       include: {
-        patient: true,
+        patient: {
+          include: {
+            orders: {
+              take: 2,
+            },
+          },
+        },
         tests: {
           include: {
-            test : {
+            test: {
               include: {
-                referencesValues : true
-              }
-            }
-          }
+                referencesValues: true,
+              },
+            },
+          },
         },
         packages: {
           include: {
@@ -107,149 +122,274 @@ export const getOrders = async (req: Request, res: Response) => {
               include: {
                 test: {
                   include: {
-                    referencesValues : true
-                  }
+                    referencesValues: true,
+                  },
                 },
-              }
+              },
             },
             profiles: {
               include: {
-                tests: {
-              include: {
-                test: {
+                headings: {
                   include: {
-                    referencesValues : true
-                  }
+                    tests: {
+                      include: {
+                        test: {
+                          include: {
+                            referencesValues: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                  orderBy: {
+                    order: 'asc',
+                  },
                 },
-              }
+                tests: {
+                  include: {
+                    test: {
+                      include: {
+                        referencesValues: true,
+                      },
+                    },
+                  },
+                },
+
+                profile: {
+                  include: {
+                    formulas: true,
+                  },
+                },
+              },
             },
-
-            }
           },
-
-        }},
+        },
         profiles: {
           include: {
+            headings: {
+              include: {
+                tests: {
+                  include: {
+                    test: {
+                      include: {
+                        referencesValues: true,
+                      },
+                    },
+                  },
+                },
+              },
+              orderBy: {
+                order: 'asc',
+              },
+            },
             tests: {
               include: {
                 test: {
                   include: {
-                    referencesValues : true
-                  }
+                    referencesValues: true,
+                  },
                 },
-              }
+              },
             },
-          }
-        }
-        ,
+            profile: {
+              include: {
+                formulas: true,
+              },
+            },
+          },
+        },
         doctor: true,
         lab: true,
       },
       orderBy: {
-        orderDate: "desc"
-      }
+        orderDate: 'desc',
+      },
     });
-    res.status(200).json({ message: "success", data: orders });
+    res.status(200).json({ message: 'success', data: orders });
   } catch (error) {
-    res.status(500).json({ message: "failure", error });
+    res.status(500).json({ message: 'failure', error });
   }
-
 };
 
-
 export const orderStatusChange = async (req: Request, res: Response) => {
-   const { id, orderstatus } = req.body;
-   await prisma.order.update({
+  const data = req.body;
+  await prisma.order.update({
     where: {
-      id: id
+      id: data.id,
     },
-    data: {
-      orderstatus: orderstatus,
-    }
-   })
-    res.status(200).json({ message: "success" })
-}
+    data: data,
+  });
+  res.status(200).json({ message: 'success' });
+};
 
 export const editOrderTests = async (req: Request, res: Response) => {
   const { tests } = req.body;
   console.log(tests);
-  
-  await tests.forEach(async (test: any) => {
-     await prisma.orderTest.update({
-      where: {
-        id: test.id
-      },
-      data: test
-     })
-  })
 
- const orders = await prisma.order.findMany({
+  await Promise.all(
+    tests.map(async (test: any) => {
+      await prisma.orderTest.update({
+        where: {
+          id: test.id,
+        },
+        data: test,
+      });
+    })
+  );
+
+  // await tests.forEach(async (test: any) => {
+  //   await prisma.orderTest.update({
+  //     where: {
+  //       id: test.id,
+  //     },
+  //     data: test,
+  //   });
+  // });
+
+  res.status(200).json({ message: 'success' });
+};
+
+export const orderStatus = async (req: Request, res: Response) => {
+  const orders = await prisma.order.findMany({
     where: {
       orderstatus: {
-        not: "Test Completed"
+        not: 'Test Completed',
       },
       packages: {
         every: {
           tests: {
             every: {
               observedValue: {
-                not: null
-              }
-            }
-          }, 
+                not: null,
+              },
+            },
+          },
           profiles: {
             every: {
               tests: {
                 every: {
                   observedValue: {
-                    not: null
-                  }
-                }
-              }
-            }
-          }
-        }
+                    not: null,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       profiles: {
         every: {
-              tests: {
-                every: {
-                  observedValue: {
-                    not: null
-                  }
-                }
-              }
-            }
+          tests: {
+            every: {
+              observedValue: {
+                not: null,
+              },
+            },
+          },
+        },
       },
       tests: {
         every: {
           observedValue: {
-            not: null
-          }
-        }
-      }
-    }
-  })
+            not: null,
+          },
+        },
+      },
+    },
+  });
 
-
-  if(orders.length > 0) {
+  if (orders.length > 0) {
     await prisma.order.updateMany({
       where: {
         id: {
-          in: orders.map((order: any) => order.id)
-        }
+          in: orders.map((order: any) => order.id),
+        },
       },
       data: {
-        orderstatus: "Test Completed"
-      }
-    })
+        orderstatus: 'Authorise',
+      },
+    });
   }
 
+  res.status(200).json({ message: 'success' });
+};
 
+export const orderEdit = async (req: Request, res: Response) => {
+  const { data } = req.body;
+  await prisma.order.update({
+    where: {
+      id: data.id,
+    },
+    data: {
+      ...data,
+    },
+  });
+  res.status(200).json({ message: 'success' });
+};
 
+export const getFormulasForOrder = async (req: Request, res: Response) => {
+  const { orderId } = req.query;
 
+  const profileIds = await prisma.orderProfile.findMany({
+    where: {
+      OR: [
+        {
+          orderId: parseInt(orderId as string) || -1,
+        },
+        {
+          package: {
+            order: {
+              id: parseInt(orderId as string) || -1,
+            },
+          },
+        },
+      ],
+    },
+  });
 
-  res.status(200).json({ message: "success" })
-}
+  //  const formulas = await prisma.formulas.findMany({
+  //     where: {
+  //       OR: [
+  //         {
+  //           profile: {
+  //             orderprofile: {
+  //               some: {
+  //               orderId: parseInt(orderId as string) || -1
+  //               },
+  //             },
+  //           },
+  //         },
+  //         {
+  //           profile: {
+  //             package: {
+  //                 some: {
+  //                   orderId: parseInt(orderId as string) || -1
+  //                 }
+  //             }
+  //           }
+  //         }
+  //       ],
+  //     },
+  //   });
+  const formulas = await prisma.formulas.findMany({
+    where: {
+      profileId: {
+        in: profileIds.map((profile: any) => profile.profileId),
+      },
+    },
+    include: {
+      test: true,
+    },
+  });
+  res.status(200).json({ message: 'success', data: formulas, profileIds });
+};
 
-
+export const deleteOrder = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  await prisma.order.delete({
+    where: {
+      id: parseInt(id as string) || 0,
+    },
+  });
+  res.status(200).json({ message: 'success' });
+};

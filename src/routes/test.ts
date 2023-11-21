@@ -3,16 +3,16 @@ import { addTest, deleteTest, getPackagesTestsPricelists, getTest, getTests, upd
 
 const testRouter = express.Router();
 
-testRouter.get("/getTests",getTests)
+testRouter.get('/getTests', getTests);
 
-testRouter.get("/getTest/:id",getTest)
+testRouter.get('/getTest/:id', getTest);
 
-testRouter.post("/add",addTest)
+testRouter.post('/add', addTest);
 
-testRouter.put("/update/:id",updateTest)
+testRouter.put('/update/:id', updateTest);
 
-testRouter.delete("/delete",deleteTest)
+testRouter.delete('/delete/:id', deleteTest);
 
-testRouter.get("/getpackagespricelist", getPackagesTestsPricelists)
+testRouter.get('/getpackagespricelist', getPackagesTestsPricelists);
 
 export default testRouter;

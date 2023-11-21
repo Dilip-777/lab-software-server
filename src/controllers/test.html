@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        @page {
+            margin: 1cm;
+            /* Set margins for the entire page */
+            background-image: url('background.jpg');
+            /* Set a background image for the entire page */
+        }
+
+        @page :first {
+            /* Define the header content for the first page */
+            content: element(header);
+        }
+
+        @page {
+
+            /* Define the header content for all pages except the first one */
+            @top-center {
+                content: element(header);
+            }
+        }
+
+        .header {
+            text-align: center;
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+        }
+
+        .no-page-break {
+            page-break-inside: avoid;
+            /* Avoid page breaks inside this div */
+        }
+
+        p {
+            page-break-after: avoid;
+            /* Avoid page breaks after paragraphs */
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header content that will appear on every page -->
+    <div class="header" id="header">
+        <h1>My Header</h1>
+        <p>Subtitle or additional header information</p>
+    </div>
+
+    <div class="no-page-break">
+        <h2>Section 1</h2>
+        <p>This content should not break across pages.</p>
+        <!-- Your content here -->
+    </div>
+
+    <p>This is a paragraph with content.</p>
+
+    <div class="no-page-break">
+        <h2>Section 2</h2>
+        <p>More content that should stay on a single page.</p>
+        <!-- Your content here -->
+    </div>
+</body>
+
+</html>

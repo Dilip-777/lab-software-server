@@ -15,6 +15,8 @@ model User {
   rolename    String
   roleId      Int
   role        Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@index([roleId], map: "User_roleId_fkey")
 }
 
 model Role {
@@ -46,17 +48,21 @@ model Test {
   reportwithinType String?
   testmethodtype   String?
   regularprice     Int         @default(0)
-  note             String?     @db.VarChar(500)
-  profile          Profile[]
-  package          Package[]
-  referencesValues Reference[]
-  pricelist        PriceList[]
+  note             String?     @db.VarChar(2000)
   orderTest        OrderTest[]
+  pricelist        PriceList[]
+  referencesValues Reference[]
   department       Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  package          Package[]   @relation("PackageToTest")
+  profile          Profile[]   @relation("ProfileToTest")
+  formulas         Formulas[]
+  headings          Headings[]
+
+  @@index([departmentId], map: "Test_departmentId_fkey")
 }
 
 model Profile {
-  id               Int         @id @default(autoincrement())
+  id               Int            @id @default(autoincrement())
   name             String
   testcode         String?
   testnames        String?
@@ -66,11 +72,37 @@ model Profile {
   samplesize       String?
   reportwithin     String?
   reportwithinType String?
-  regularprice     Int         @default(0)
-  note             String?
-  test             Test[]
-  package          Package[]
+  regularprice     Int            @default(0)
+  note             String?         @db.VarChar(2000)
   pricelist        PriceList[]
+  package          Package[]      @relation("PackageToProfile")
+  test             Test[]         @relation("ProfileToTest")
+  formulas         Formulas[]
+  orderprofile     OrderProfile[]
+  headings          Headings[]
+}
+
+model Headings {
+  id       Int    @id @default(autoincrement())
+  heading  String
+  tests    Test[]
+  profileId  Int
+  order      Int  @default(0)
+  profile Profile @relation(fields: [profileId], references: [id])
+}
+
+model Formulas {
+  id             Int         @id @default(autoincrement())
+  firsttest      String?
+  firstoperator  String?
+  secondtest     String?
+  secondoperator String?
+  thirdtest      String?
+  profileId      Int
+  testId         Int
+  references     Reference[]
+  test           Test        @relation(fields: [testId], references: [id], onDelete: Cascade)
+  profile        Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
 }
 
 model Package {
@@ -83,10 +115,10 @@ model Package {
   reportwithin     String?
   reportwithinType String?
   regularprice     Int         @default(0)
-  note             String?
-  test             Test[]
-  profile          Profile[]
+  note             String?      @db.VarChar(2000)
   pricelist        PriceList[]
+  profile          Profile[]   @relation("PackageToProfile")
+  test             Test[]      @relation("PackageToTest")
 }
 
 model PriceList {
@@ -96,23 +128,32 @@ model PriceList {
   profileprice Int      @default(0)
   packageprice Int      @default(0)
   testId       Int?
-  test         Test?    @relation(fields: [testId], references: [id], onDelete: Cascade)
   profileId    Int?
-  profile      Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
   packageId    Int?
   package      Package? @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  profile      Profile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  test         Test?    @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([packageId], map: "PriceList_packageId_fkey")
+  @@index([profileId], map: "PriceList_profileId_fkey")
+  @@index([testId], map: "PriceList_testId_fkey")
 }
 
 model Reference {
-  id         Int    @id @default(autoincrement())
-  gender     String
-  minAge     Int
-  maxAge     Int
-  lowerValue Int
-  upperValue Int
-  unit       String
-  testId     Int
-  test       Test   @relation(fields: [testId], references: [id], onDelete: Cascade)
+  id            Int       @id @default(autoincrement())
+  gender        String
+  minAge        Int
+  maxAge        Int
+  lowerValue    Float
+  upperValue    Float
+  unit          String
+  note          String?  @db.VarChar(200)
+  testId        Int
+  test          Test      @relation(fields: [testId], references: [id], onDelete: Cascade)
+  formulatestId Int?
+  formulatest   Formulas? @relation(fields: [formulatestId], references: [id], onDelete: Cascade)
+
+  @@index([testId], map: "Reference_testId_fkey")
 }
 
 model RefLab {
@@ -147,27 +188,45 @@ model RefDoctor {
 }
 
 model Order {
-  id            Int            @id @default(autoincrement())
-  orderDate     DateTime       @default(now())
-  patientId     Int
-  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId      Int?
-  doctor        RefDoctor?     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  labId         Int?
-  lab           RefLab?        @relation(fields: [labId], references: [id], onDelete: Cascade)
-  tests         OrderTest[]
-  profiles      OrderProfile[]
-  packages      OrderPackage[]
-  totalamount   Int
-  discount      Int
-  discountType  String?
-  netamount     Int
-  paymentmethod String
-  paidamount    Int
-  balanceamount Int
-  remarks       String?
-  bill          String?
-  orderstatus   String         @default("Registered")
+  id             Int            @id @default(autoincrement())
+  orderDate      DateTime       @default(now())
+  patientId      Int
+  doctorId       Int?
+  labId          Int?
+  totalamount    Int
+  discount       Int
+  discountType   String?
+  netamount      Int
+  paymentmethod  String
+  paidamount     Int
+  balanceamount  Int
+  remarks        String?
+  bill           String?
+  orderstatus    String         @default("Registered")
+  collectiontime DateTime?
+  processtime    DateTime?
+  reporttime     DateTime?
+ 
+  doctor         RefDoctor?     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  lab            RefLab?        @relation(fields: [labId], references: [id], onDelete: Cascade)
+  patient        Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  packages       OrderPackage[]
+  profiles       OrderProfile[]
+  tests          OrderTest[]
+
+
+  @@index([doctorId], map: "Order_doctorId_fkey")
+  @@index([labId], map: "Order_labId_fkey")
+  @@index([patientId], map: "Order_patientId_fkey")
+}
+
+model OrderTestHeadings {
+  id       Int    @id @default(autoincrement())
+  heading String
+  profileId Int
+ order     Int  @default(0)
+  tests    OrderTest[]
+  profile OrderProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 }
 
 model OrderProfile {
@@ -181,10 +240,18 @@ model OrderProfile {
   reportwithin String?
   price        Int?
   note         String?
+  profileId    Int?
+  profile      Profile?      @relation(fields: [profileId], references: [id])
+  order        Order?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   package      OrderPackage? @relation(fields: [packageId], references: [id], onDelete: Cascade)
   tests        OrderTest[]
-  order        Order?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  headings     OrderTestHeadings[]
+
+  @@index([orderId], map: "OrderProfile_orderId_fkey")
+  @@index([packageId], map: "OrderProfile_packageId_fkey")
 }
+
+
 
 model OrderPackage {
   id           Int            @id @default(autoincrement())
@@ -196,34 +263,41 @@ model OrderPackage {
   reportwithin String?
   price        Int?
   note         String?
+  order        Order?         @relation(fields: [orderId], references: [id])
   profiles     OrderProfile[]
   tests        OrderTest[]
-  order        Order?         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId], map: "OrderPackage_orderId_fkey")
 }
 
 model OrderTest {
-  id             Int     @id @default(autoincrement())
+  id             Int           @id @default(autoincrement())
   orderId        Int?
   name           String
   sampletype     String?
   samplesize     String?
   sampleunit     String?
   reportwithin   String?
-  testmethodtype String?
   price          Int
   note           String?
   highlight      String?
-  heading        String?
-  referenceValue Int?
-  observedValue  Int?
+  bold           Boolean     @default(false)
+  observedValue  Float?
   testId         Int
-  test           Test    @relation(fields: [testId], references: [id], onDelete: Cascade)
   profileId      Int?
+  packageId      Int?
+  testmethodtype String?
+   headingId      Int?
+  heading         OrderTestHeadings? @relation(fields: [headingId], references: [id], onDelete: Cascade)
+  order          Order?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  package        OrderPackage? @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  profile        OrderProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  test           Test          @relation(fields: [testId], references: [id])
 
-  profile   OrderProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  packageId Int?
-  package   OrderPackage? @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  order     Order?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  @@index([orderId], map: "OrderTest_orderId_fkey")
+  @@index([packageId], map: "OrderTest_packageId_fkey")
+  @@index([profileId], map: "OrderTest_profileId_fkey")
+  @@index([testId], map: "OrderTest_testId_fkey")
 }
 
 model Patient {
@@ -246,4 +320,6 @@ model Privilege {
   name   String
   roleId Int
   role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@index([roleId], map: "Privilege_roleId_fkey")
 }

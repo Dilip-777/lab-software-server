@@ -1,103 +1,103 @@
-import { Request, Response } from "express";
-import path from "path";
-import puppeteer from "puppeteer";
+import { Request, Response } from 'express';
+import path from 'path';
+import puppeteer from 'puppeteer';
+import { imagestr } from './basecode';
+import moment from 'moment';
 
-// const img = require("../images/bgimage.png")
+export const generateReport = async (req: Request, res: Response) => {
+  const { html: tableHTML, patient, order, letterhead } = req.body;
 
-// const puppeteer = require('puppeteer');
-
-// Your Express route handler to generate the PDF using Puppeteer
-export const generateReport =  async  (req: Request, res: Response) => {
-  const tableHTML = req.body.html; // Assuming the HTML code is sent from the client
-
-//    const headerImagePath = path.join(__dirname, "../images/header_image.jpg");
+  console.log(moment(order.orderDate).format('lll'), order);
 
   try {
-    const browser = await puppeteer.launch({headless: true});
+    const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
     await page.setContent(tableHTML);
-    // await (await browser.newPage()).setContent(tableHTML);
 
-    
-    
-    // You may want to adjust the page dimensions and layout based on your table's size
-     await page.pdf({
-        path: 'generated_table.pdf',
+    await page.pdf({
+      path: 'generated_table.pdf',
       format: 'A4',
       landscape: false,
       printBackground: true,
       margin: {
-        top: '0',
-        bottom: '0',
-        left: '0',
-        right: '0',
+        top: '250',
+        bottom: '120',
+        left: '30',
+        right: '30',
       },
-      
+
       preferCSSPageSize: true,
       displayHeaderFooter: true,
-      headerTemplate: ` <div>
-    
-    <div style="margin-top: 8rem; padding-bottom; 5rem;z-index: 1000; background-image: url('http://localhost:5000/images/reportbg.png');">
-    
-    <div style="display: flex; justify-content: space-between; ">
+      headerTemplate: `<style>
+        html {
+          -webkit-print-color-adjust: exact;
+        }
+        body{
+          margin: 0;
+          padding: 0;
+        }
+        </style> <div style="width: 100%;margin-top: -15px; padding-left: 30px; padding-right: 30px; padding-top: 100px;background-image: url('data:image/png;base64,${
+          letterhead && imagestr
+        }');background-size: 100%; background-repeat: repeat; height: 100vh; z-index: 100000;"> <div style="display: flex; justify-content: space-between; ">
+       
             <div style="display: flex; flex-direction: column;">
-                <p style="font-size: 15px; font-weight: bolder;margin:3px;">${
-                 " patient.nameprefix" + " " + "patient.name"
+                <p style="font-size: 12px; font-weight: bolder;margin:3px; background-color; red; max-width: 170px;">${
+                  patient.nameprefix + ' ' + patient.name
                 }</p>
-                <p style="font-size: 14px;margin: 2px;"><strong>Age : </strong>${
-                  "patient.age" + " " + "patient.agesuffix"
+                <p style="font-size:11px;margin: 2px;"><strong>Age : </strong>${
+                  patient.age + ' ' + patient.agesuffix
                 }</p>
-                <p style="font-size: 14px; margin: 2px;"><strong>Sex : </strong>${
-                  "patient.gender"
-                }</p>
-                <p style="font-size: 14px;margin:2px;"><strong>PID : </strong>${
-                  "patient.id"
-                }</p>
+                <p style="font-size:11px; margin: 2px;"><strong>Sex : </strong>${patient.gender}</p>
+                <p style="font-size:11px;margin:2px;"><strong>PID : </strong>${patient.id}</p>
             </div>
-            <div style="border-left: 1.5px solid black;  margin-left: 1rem; height: 6rem;"></div>
+            <div style="display: flex;">
+            <div style="border-left: 1px solid black;  margin-right: 10px; height: 80px;"></div>
             <div style="display: flex; flex-direction: column; justify-self: flex-start;">
-                <p style="font-size: 14px;margin:1px;">
+                <p style="font-size:11px;margin:1px;">
                   <strong> Sample Collected At:</strong> <br>
-            Krupanidhi book stall,</p>
-            <p style="font-size: 14px;margin:1px;margin-top: 5px;">Ref. By: <strong>skldfjslf</strong></p>
+            </p>
+             <p style="font-size:11px;margin:1px;">Nellore</p>
+            <p style="font-size:11px;margin:1px;margin-top: 5px;">Ref. By: <strong>${
+              order.lab?.diagonsticname || order.doctor?.doctorname || 'Self'
+            }</strong></p>
                 </p>
             </div>
-             <div style="border-left: 1.5px solid black;  margin-left: 1rem; height: 6rem;"></div>
-              <div style="display: flex; flex-direction: column;">
-                <p style="font-size: 12px;margin:1px;">
+            </div>
+             <div style="border-left: 1px solid black;  margin-left: 10px; height: 80px;"></div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                 <p style="font-size: 9px;margin:1px;">
                    Registered On: <br>
-                   11:18 AM 15 Aug, 23<br>
-                   Collected on:<br>
-                   11:43 AM 15 Aug, 23<br>
-                   Reported on:<br>
-                   12:11 PM 15 Aug, 23
-                </p>
+                   </p>
+                 <p style="font-size: 9px;margin:1px;">
+                    ${moment(order.orderDate).format('lll') || ''}
+                   </p>
+                 <p style="font-size: 9px;margin:1px;">
+                   Collected on:
+                   </p>
+                 <p style="font-size: 9px;margin:1px;">
+                   ${moment(order.collectiontime).format('lll') || ''}
+                   </p>
+                 <p style="font-size: 9px;margin:1px;">
+                   Reported on:
+                   </p>
+                 <p style="font-size: 9px;margin:1px;">
+                    ${moment(order.reporttime).format('lll') || ''}
+                   </p>
+                
+              
             </div>
+            </div>
+            <div style="border-top: 0.5px solid black;border-width:0.5px; margin-top: 7px; width: 100%;"></div>
         </div>
-    </div></div>`,
-      footerTemplate: `<div style="display: flex; justify-content: space-between; margin-top: 1rem;background-color: red;">`
+        </div>
+       `,
+      footerTemplate: `<div style="display: flex; justify-content: space-between; margin-top: 1rem;background-color: red;">`,
     });
-//     await page.pdf({
-// path: 'generated_table.pdf',
-//  format: "A4",
-
-//  displayHeaderFooter:true,
- 
-// headerTemplate:"<div style=' font-size: 28px; width:100%; -webkit-print-color-adjust: exact;height:180px; min-height: 69px;overflow: auto;clear: both;border-bottom: 1px solid #ddd;background: red;' >Header</div>", 
-
-// footerTemplate:"<div style=' font-size: 28px;  width:100%; -webkit-print-color-adjust: exact;height:180px; min-height: 69px;overflow: auto;clear: both;border-bottom: 1px solid #ddd;background: red;'> Footer</div>", 
-
-// printBackground : true, 
-
-// preferCSSPageSize:false,
-
-// margin : {top: 0, bottom: 0, left: 0, right: 0
-// } 
-// } ); 
 
     await browser.close();
 
-    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="desired_filename.pdf"');
+    res.contentType('application/pdf');
     res.sendFile(path.resolve('generated_table.pdf'));
   } catch (error) {
     console.error(error);
