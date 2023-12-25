@@ -6,11 +6,185 @@ import moment from "moment";
 import prisma from "../util/prisma";
 import fs from "fs";
 import QRCode from "qrcode";
+import { generateReportHtml } from "../utils/generateReport";
 
-export const generateReport = async (req: Request, res: Response) => {
-  const { html: tableHTML, patient, order, letterhead } = req.body;
+export const pdfwithqr = async (req: Request, res: Response) => {
+  const { patientId, orderId } = req.query;
 
-  const settings = await prisma.printSetting.findFirst();
+  const settings = await prisma.printSetting.findFirst({
+    include: {
+      signs: true,
+    },
+  });
+
+  const orderedPackages = await prisma.orderPackage.findMany({
+    where: {
+      orderId: Number(orderId as string),
+    },
+    include: {
+      tests: {
+        include: {
+          test: {
+            include: {
+              referencesValues: true,
+            },
+          },
+        },
+      },
+      profiles: {
+        include: {
+          headings: {
+            include: {
+              tests: {
+                include: {
+                  test: {
+                    include: {
+                      referencesValues: true,
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: {
+              order: "asc",
+            },
+          },
+          tests: {
+            include: {
+              test: {
+                include: {
+                  referencesValues: true,
+                },
+              },
+            },
+          },
+
+          profile: {
+            include: {
+              formulas: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const orderedTests = await prisma.orderTest.findMany({
+    where: {
+      orderId: Number(orderId as string),
+    },
+    include: {
+      test: {
+        include: {
+          referencesValues: true,
+        },
+      },
+    },
+  });
+
+  const orderedProfiles = await prisma.orderProfile.findMany({
+    where: {
+      orderId: Number(orderId as string),
+    },
+    include: {
+      profile: true,
+      headings: {
+        include: {
+          tests: {
+            include: {
+              test: {
+                include: {
+                  referencesValues: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          order: "asc",
+        },
+      },
+      tests: {
+        include: {
+          test: {
+            include: {
+              referencesValues: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const departments = await prisma.department.findMany({
+    orderBy: {
+      order: "desc",
+    },
+  });
+
+  let data1: {
+    packages: any[];
+    profiles: any[];
+    tests: any[];
+    name: string;
+  }[] = [];
+
+  if (settings?.departmentwise) {
+    departments.forEach((d) => {
+      const packs = orderedPackages.filter(
+        (p) =>
+          p?.profiles.find((p) => p.profile?.departmentId === d.id) ||
+          p?.tests.find((p) => p.test?.departmentId === d.id)
+      );
+      const profiles = orderedProfiles.filter(
+        (p) => p?.profile?.departmentId === d.id
+      );
+      const tests = orderedTests.filter((p) => p.test.departmentId === d.id);
+      if ([...packs, ...profiles, ...tests].length > 0) {
+        data1.push({ packages: packs, profiles, tests, name: d.name });
+      }
+    });
+    const packs = orderedPackages;
+    const profiles = orderedProfiles.filter((p) => !p?.profile?.departmentId);
+    const tests = orderedTests.filter((p) => !p.test.departmentId);
+    if ([...packs, ...profiles, ...tests].length > 0)
+      data1.push({
+        packages: packs,
+        profiles: profiles,
+        tests: tests,
+        name: "",
+      });
+  } else {
+    data1.push({
+      packages: orderedPackages,
+      profiles: orderedProfiles,
+      tests: orderedTests,
+      name: "",
+    });
+  }
+
+  const patient = await prisma.patient?.findUnique({
+    where: {
+      id: Number(patientId as string),
+    },
+  });
+
+  const order = await prisma.order?.findUnique({
+    where: {
+      id: Number(orderId as string),
+    },
+    include: {
+      lab: true,
+      doctor: true,
+    },
+  });
+
+  const html = generateReportHtml({
+    departments: [],
+    departmentwise: data1,
+    patient: patient,
+    printSetting: settings,
+  });
 
   const imgStr: string | null =
     (await getImgStr(
@@ -20,10 +194,13 @@ export const generateReport = async (req: Request, res: Response) => {
   // try {
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
-  await page.setContent(tableHTML);
+  await page.setContent(html as string);
 
   const qrCodeBuffer = await generateQRCode(
-    "http://localhost:5000/pdf?orderId=" + order.id + "&patientId=" + patient.id
+    "http://localhost:5000/pdf?orderId=" +
+      order?.id +
+      "&patientId=" +
+      patient?.id
   );
 
   await page.pdf({
@@ -37,7 +214,6 @@ export const generateReport = async (req: Request, res: Response) => {
       left: settings?.leftmargin || 30,
       right: "0",
     },
-
     preferCSSPageSize: true,
     displayHeaderFooter: true,
     headerTemplate: `<style>
@@ -54,17 +230,13 @@ export const generateReport = async (req: Request, res: Response) => {
         <div style="display: flex; ">
             <div style="display: flex; flex-direction: column;position: relative;">
                 <p style="font-size: 12px; font-weight: bolder;margin:3px;margin-left: 0; background-color; red; max-width: 170px;">${
-                  patient.nameprefix + " " + patient.name
+                  patient?.nameprefix + " " + patient?.name
                 }</p>
                 <p style="font-size:11px;margin: 2px;margin-left: 0px;"><strong>Age : </strong>${
-                  patient.age + " " + patient.agesuffix
+                  patient?.age + " " + patient?.agesuffix
                 }</p>
-                <p style="font-size:11px; margin: 2px;margin-left: 0px;"><strong>Sex : </strong>${
-                  patient.gender
-                }</p>
-                <p style="font-size:11px;margin:2px;margin-left: 0;"><strong>PID : </strong>${
-                  patient.id
-                }</p>
+                <p style="font-size:11px; margin: 2px;margin-left: 0px;"><strong>Sex : </strong>${patient?.gender}</p>
+                <p style="font-size:11px;margin:2px;margin-left: 0;"><strong>PID : </strong>${patient?.id}</p>
                 </div>
                 </div>
                 <div style="display: flex;">
@@ -80,7 +252,7 @@ export const generateReport = async (req: Request, res: Response) => {
             </p>
              <p style="font-size:11px;margin:1px;">Nellore</p>
             <p style="font-size:11px;margin:1px;margin-top: 5px;">Ref. By: <strong>${
-              order.lab?.diagonsticname || order.doctor?.doctorname || "Self"
+              order?.lab?.diagonsticname || order?.doctor?.doctorname || "Self"
             }</strong></p>
                 </p>
             </div>
@@ -91,19 +263,30 @@ export const generateReport = async (req: Request, res: Response) => {
                    Registered On: <br>
                    </p>
                  <p style="font-size: 9px;margin:1px;">
-                    ${moment(order.orderDate).format("lll") || ""}
+                    ${
+                      moment(order?.orderDate).format("MMM DD, YYYY hh:mm A") ||
+                      ""
+                    }
                    </p>
                  <p style="font-size: 9px;margin:1px;">
                    Collected on:
                    </p>
                  <p style="font-size: 9px;margin:1px;">
-                   ${moment(order.collectiontime).format("lll") || ""}
+                   ${
+                     moment(order?.collectiontime).format(
+                       "MMM DD, YYYY hh:mm A"
+                     ) || ""
+                   }
                    </p>
                  <p style="font-size: 9px;margin:1px;">
                    Reported on:
                    </p>
                  <p style="font-size: 9px;margin:1px;">
-                    ${moment(order.reporttime).format("lll") || ""}
+                    ${
+                      moment(order?.reporttime).format(
+                        "MMM DD, YYYY hh:mm A"
+                      ) || ""
+                    }
                    </p>
                 
               
@@ -140,7 +323,7 @@ export const generateReport = async (req: Request, res: Response) => {
 
   res.setHeader(
     "Content-Disposition",
-    'attachment; filename="desired_filename.pdf"'
+    `attachment; filename="${patient?.nameprefix + " " + patient?.name}.pdf"` //${patient?.nameprefix + " " + patient?.name}.pdf
   );
   res.contentType("application/pdf");
   res.sendFile(path.resolve("generated_table.pdf"));
@@ -152,18 +335,7 @@ export const generateReport = async (req: Request, res: Response) => {
 
 async function generateQRCode(data: any) {
   try {
-    // const chunkSize = 200; // Adjust the chunk size as needed
-    // const chunks = [];
-    // for (let i = 0; i < data.length; i += chunkSize) {
-    //   chunks.push(data.slice(i, i + chunkSize));
-    // }
-
-    // const qrCodes = await Promise.all(
-    //   chunks.map((chunk) => QRCode.toBuffer(chunk))
-    // );
-    // const combinedBuffer = Buffer.concat(qrCodes);
     const qrCodeBuffer = await QRCode.toBuffer(data);
-    // return combinedBuffer.toString("base64");
     return qrCodeBuffer.toString("base64");
   } catch (error) {
     console.error("Error generating QR Code:", error);
@@ -174,11 +346,6 @@ async function generateQRCode(data: any) {
 function getImgStr(filePath: string) {
   try {
     const data = fs.readFileSync(filePath);
-    // Check if the file is an image
-    // if (!isValidImage(data)) {
-    //   throw new Error("Invalid image format");
-    // }
-    // Encode the image data to base64 string
     const imgStr = Buffer.from(data).toString("base64");
     return imgStr;
   } catch (error) {

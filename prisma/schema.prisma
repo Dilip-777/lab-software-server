@@ -7,6 +7,40 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model PrintSetting {
+  id             Int     @id @default(autoincrement())
+  uploadletterhead   Boolean    @default(false)
+  letterhead         String?
+  departmentwisesigns   Boolean   @default(false)
+  testnewpage   Boolean   @default(false)
+  profilefirst  Boolean   @default(false)
+  signdepartmentwise   Boolean   @default(false)
+  commonsigns   Boolean   @default(false)
+  profilenewpage   Boolean   @default(false)
+  testprofilesamepage   Boolean   @default(false)
+  departmentwise   Boolean   @default(false)
+  disableqrcode  Boolean   @default(false)
+  pagenumber  Boolean   @default(false)
+  showendline  Boolean   @default(false)
+  endlineposition  String?
+  endline    String?
+  topmargin  Int   @default(0)
+  bottommargin  Int   @default(0)
+  leftmargin  Int   @default(0)
+  rightmargin  Int   @default(0)
+  signs Signs[]
+}
+
+model Signs {
+  id             Int     @id @default(autoincrement())
+  specialisation String?
+  doctorname     String
+  signature      String?
+  settingsId     Int
+  settings       PrintSetting @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+}
+
+
 model User {
   id          Int    @id @default(autoincrement())
   username    String @unique
@@ -31,7 +65,11 @@ model Department {
   name            String
   doctor          String
   doctorSignature String
+  specialisation  String?
+  order           Int    @default(0)
   tests           Test[]
+  packages        Package[]
+  profiles        Profile[]
 }
 
 model Test {
@@ -72,6 +110,7 @@ model Profile {
   samplesize       String?
   reportwithin     String?
   reportwithinType String?
+  departmentId     Int?
   regularprice     Int            @default(0)
   note             String?         @db.VarChar(2000)
   pricelist        PriceList[]
@@ -80,6 +119,7 @@ model Profile {
   formulas         Formulas[]
   orderprofile     OrderProfile[]
   headings          Headings[]
+  department       Department?    @relation(fields: [departmentId], references: [id])
 }
 
 model Headings {
@@ -108,6 +148,7 @@ model Formulas {
 model Package {
   id               Int         @id @default(autoincrement())
   name             String
+  departmentId     Int?
   sampletype       String?
   container        String?
   samplesize       String?
@@ -119,6 +160,8 @@ model Package {
   pricelist        PriceList[]
   profile          Profile[]   @relation("PackageToProfile")
   test             Test[]      @relation("PackageToTest")
+  orderpackage     OrderPackage[]
+  department       Department? @relation(fields: [departmentId], references: [id])
 }
 
 model PriceList {
@@ -266,6 +309,8 @@ model OrderPackage {
   order        Order?         @relation(fields: [orderId], references: [id])
   profiles     OrderProfile[]
   tests        OrderTest[]
+  packageId    Int?
+  package      Package?       @relation(fields: [packageId], references: [id])
 
   @@index([orderId], map: "OrderPackage_orderId_fkey")
 }

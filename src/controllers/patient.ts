@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
-import prisma from '../util/prisma';
-import { Test } from '@prisma/client';
+import { Request, Response } from "express";
+import prisma from "../util/prisma";
+import { Test } from "@prisma/client";
 
 export const getPatient = async (req: Request, res: Response) => {
   try {
@@ -10,7 +10,7 @@ export const getPatient = async (req: Request, res: Response) => {
       include: {
         orders: {
           orderBy: {
-            orderDate: 'desc',
+            orderDate: "desc",
           },
           include: {
             tests: {
@@ -39,7 +39,7 @@ export const getPatient = async (req: Request, res: Response) => {
                     },
                   },
                   orderBy: {
-                    order: 'asc',
+                    order: "asc",
                   },
                 },
                 tests: {
@@ -84,7 +84,7 @@ export const getPatient = async (req: Request, res: Response) => {
                         },
                       },
                       orderBy: {
-                        order: 'asc',
+                        order: "asc",
                       },
                     },
                     tests: {
@@ -109,18 +109,18 @@ export const getPatient = async (req: Request, res: Response) => {
         },
       },
     });
-    res.status(200).json({ message: 'success', data: patient });
+    res.status(200).json({ message: "success", data: patient });
   } catch (error) {
-    res.status(500).json({ message: 'failure', error });
+    res.status(500).json({ message: "failure", error });
   }
 };
 
 export const getPatients = async (req: Request, res: Response) => {
   try {
     const patients = await prisma.patient.findMany();
-    res.status(200).json({ message: 'success', data: patients });
+    res.status(200).json({ message: "success", data: patients });
   } catch (error) {
-    res.status(500).json({ message: 'failure', error });
+    res.status(500).json({ message: "failure", error });
   }
 };
 
@@ -209,7 +209,9 @@ export const addPatient = async (req: Request, res: Response) => {
   });
 
   data.packages?.map(async (packageData: any) => {
-    const price = packageData?.pricelist?.find((p: any) => p.label === data.pricelist)?.price || 0;
+    const price =
+      packageData?.pricelist?.find((p: any) => p.label === data.pricelist)
+        ?.price || 0;
     const p = await prisma.orderPackage.create({
       data: {
         orderId: order.id,
@@ -220,6 +222,7 @@ export const addPatient = async (req: Request, res: Response) => {
         samplesize: packageData.samplesize,
         sampletype: packageData.sampletype,
         sampleunit: packageData.sampleunit,
+        packageId: packageData.id,
         tests: {
           createMany: {
             data: packageData.test.map((test: Test) => ({
@@ -292,7 +295,9 @@ export const addPatient = async (req: Request, res: Response) => {
     });
   });
   if (data.profiles) {
-    const price = data.profiles?.pricelist?.find((p: any) => p.label === data.pricelist)?.price || 0;
+    const price =
+      data.profiles?.pricelist?.find((p: any) => p.label === data.pricelist)
+        ?.price || 0;
     await req.body.profiles.forEach(async (profileData: any) => {
       console.log(profileData, profileData.headings);
       const profile = await prisma.orderProfile.create({
@@ -350,7 +355,9 @@ export const addPatient = async (req: Request, res: Response) => {
 
   await prisma.orderTest.createMany({
     data: data.tests.map((test: any) => {
-      const price = test.pricelist?.find((p: any) => p.label === data.pricelist)?.price || 0;
+      const price =
+        test.pricelist?.find((p: any) => p.label === data.pricelist)?.price ||
+        0;
       return {
         orderId: order.id,
         name: test.name,
@@ -368,7 +375,7 @@ export const addPatient = async (req: Request, res: Response) => {
   // const patient = await prisma.patient.create({
   //     data: data
   // })
-  res.status(200).json({ message: 'success' });
+  res.status(200).json({ message: "success" });
   // }
   // catch (error) {
   //     res.status(500).json({ message: "failure", error })
@@ -383,9 +390,9 @@ export const updatePatient = async (req: Request, res: Response) => {
       where: { id: parseInt(id as string) },
       data: data,
     });
-    res.status(200).json({ message: 'success', data: patient });
+    res.status(200).json({ message: "success", data: patient });
   } catch (error) {
-    res.status(500).json({ message: 'failure', error });
+    res.status(500).json({ message: "failure", error });
   }
 };
 
@@ -395,8 +402,8 @@ export const deletePatient = async (req: Request, res: Response) => {
     const patient = await prisma.patient.delete({
       where: { id: parseInt(id as string) },
     });
-    res.status(200).json({ message: 'success', data: patient });
+    res.status(200).json({ message: "success", data: patient });
   } catch (error) {
-    res.status(500).json({ message: 'failure', error });
+    res.status(500).json({ message: "failure", error });
   }
 };
